@@ -1,0 +1,303 @@
+/* ==========================================
+    RESET E CONFIGURAÇÕES GLOBAIS
+========================================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #0f0f0f;
+    color: #f0f0f0;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 300;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* ==========================================
+    PERSONALIZAÇÃO DO SCROLLBAR
+========================================== */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0f0f0f;
+    border-radius: 10px;
+    border: 1px solid #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(45deg, #00ffaa, #00ccaa);
+    border-radius: 10px;
+    border: 1px solid #0f0f0f;
+    transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(45deg, #00ccaa, #00ffaa);
+    box-shadow: 0 0 10px #00ffaa4d;
+}
+
+/* ==========================================
+    ESTRUTURA PRINCIPAL
+========================================== */
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    min-height: 100vh;
+    position: relative;
+}
+
+.notepad-container {
+    position: relative;
+    width: 100%;
+    min-height: 80vh;
+}
+
+/* ==========================================
+    TEXTAREA PRINCIPAL (INVISÍVEL)
+========================================== */
+.notepad {
+    width: 100%;
+    min-height: 80vh;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: transparent; /* Texto invisível */
+    caret-color: transparent; /* Cursor invisível */
+    font-family: 'Montserrat', sans-serif;
+    font-size: 18px;
+    font-weight: 300;
+    line-height: 1.6;
+    resize: none;
+    padding: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2; /* Acima do conteúdo formatado */
+}
+
+.notepad::placeholder {
+    color: #888888;
+    font-style: italic;
+}
+
+/* ==========================================
+    CONTEÚDO FORMATADO (VISÍVEL)
+========================================== */
+.formatted-content {
+    width: 100%;
+    min-height: 80vh;
+    background: transparent;
+    color: #f0f0f0;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 18px;
+    font-weight: 300;
+    line-height: 1.6;
+    padding: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 3; /* Acima do textarea para permitir cliques em links */
+    pointer-events: none; /* Não intercepta cliques gerais */
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Estilos para texto formatado */
+.formatted-content .bold {
+    font-weight: 700;
+    color: #f0f0f0;
+    white-space: pre-wrap;
+}
+
+.formatted-content .italic {
+    font-style: italic;
+    color: #f0f0f0;
+    white-space: pre-wrap;
+}
+
+.formatted-content .list-item {
+    display: inline;
+    margin: 0;
+}
+
+.formatted-content .divider {
+    display: inline-block;
+    width: 100%;
+    height: 1px;
+    background: #f0f0f0;
+    margin: 10px 0;
+    vertical-align: middle;
+}
+
+#cursor-fake {
+    display: inline-block;
+    width: 1.5px;
+    height: 18px;
+    background-color: #00ffaa;
+    vertical-align:middle;
+    animation: blink 1s step-start infinite;
+    pointer-events: none;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    50.01%, 100% { opacity: 0; }
+}
+
+/* ==========================================
+    ESTILOS PARA LINKS CLICÁVEIS
+========================================== */
+.formatted-content a {
+    color: #00ffaa;
+    text-decoration: none;
+    position: relative;
+    pointer-events: auto; /* Permite cliques nos links */
+    border-bottom: 1px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.formatted-content a:hover {
+    color: #00ccaa;
+    border-bottom-color: #00ccaa;
+}
+
+.formatted-content a:before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 1px;
+    bottom: -2px;
+    left: 0;
+    background: linear-gradient(90deg, #00ffaa, #00ccaa);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.5s ease;
+}
+
+.formatted-content a:hover:before {
+    transform: scaleX(1);
+    transform-origin: left;
+}
+
+/* ==========================================
+    BOTÃO DE AJUDA (APENAS VISUAL)
+========================================== */
+.help-button {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f0f0f;
+    background: linear-gradient(135deg, #00ffaa 0%, #00ccaa 100%);
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    animation: pulse 2s infinite;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.help-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, #f0f0f04d, transparent);
+    transition: left 0.5s ease;
+}
+
+.help-button:hover::before {
+    left: 100%;
+}
+
+.help-button:hover {
+    transform: translateY(-2px) scale(1.1);
+    box-shadow: 0 10px 30px #00ffaa4d;
+}
+
+/* Animação de pulso */
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 #00ffaab3;
+    }
+    70% {
+        box-shadow: 0 0 0 10px #00ffaa00;
+    }
+    100% {
+        box-shadow: 0 0 0 0 #00ffaa00;
+    }
+}
+
+/* ==========================================
+    INDICADOR DE SALVAMENTO
+========================================== */
+.save-indicator {
+    position: fixed;
+    top: 40px;
+    right: 20px;
+    background: linear-gradient(135deg, #00ffaa 0%, #00ccaa 100%);
+    color: #0f0f0f;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 999;
+}
+
+.save-indicator.show {
+    opacity: 1;
+}
+
+/* ==========================================
+    RESPONSIVIDADE
+========================================== */
+@media (max-width: 768px) {
+    .container {
+        padding: 20px 15px;
+    }
+    
+    .help-button {
+        width: 45px;
+        height: 45px;
+        font-size: 15px;
+        bottom: 20px;
+        right: 20px;
+    }
+    
+    .notepad, .formatted-content {
+        font-size: 16px;
+    }
+
+    .save-indicator{
+        top: 20px;
+    }
+    
+    ::-webkit-scrollbar {
+        width: 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    ::-webkit-scrollbar {
+        width: 4px;
+    }
+}

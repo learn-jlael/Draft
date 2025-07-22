@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Draft - Bloco de Notas Online</title>
+    <style>
+        /* ===== IMPORTAÇÃO DAS FONTES ===== */
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Redressed&display=swap');
+        
+        /* ===== RESET GLOBAL ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* ===== PERSONALIZAÇÃO DO SCROLLBAR ===== */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #0f0f0f;
+            border-radius: 10px;
+            border: 1px solid #1a1a1a;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(45deg, #00ffaa, #00ccaa);
+            border-radius: 10px;
+            border: 1px solid #0f0f0f;
+            transition: all 0.3s ease;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(45deg, #00ccaa, #00ffaa);
+            box-shadow: 0 0 10px #00ffaa4d;
+        }
+
+        /* ===== CONFIGURAÇÕES DO BODY ===== */
+        body {
+            background-color: #0f0f0f;
+            color: #f0f0f0;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 300;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ===== CONTAINER PRINCIPAL ===== */
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+            min-height: calc(100vh - 80px);
+        }
+
+        /* ===== LOGO PRINCIPAL ===== */
+        .logo {
+            font-family: 'Redressed', cursive;
+            font-size: 7rem;
+            font-weight: 400;
+            background: linear-gradient(135deg, #00ffaa 0%, #00ccaa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+        }
+
+        /* ===== SUBTÍTULO ===== */
+        .subtitle {
+            font-size: 1.2rem;
+            font-weight: 300;
+            color: #f0f0f0;
+            text-align: center;
+            margin-bottom: 20px;
+            max-width: 500px;
+        }
+
+        /* ===== CONTAINER DO INPUT ===== */
+        .input-container {
+            width: 100%;
+            max-width: 500px;
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        /* ===== INPUT COM BOTÃO INTEGRADO ===== */
+        .input-with-button {
+            position: relative;
+            display: flex;
+            align-items: center;
+            background: #202020;
+            border-radius: 8px;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .custom-input {
+            flex: 1;
+            padding: 16px 20px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 16px;
+            font-weight: 300;
+            background: transparent;
+            border: none;
+            color: #00ccaa;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .custom-input::placeholder {
+            color: #888888;
+            font-weight: 300;
+        }
+
+        /* Linha verde na parte inferior */
+        .input-with-button::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #00ffaa, #00ccaa);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+
+        /* Ativa a linha verde quando focado */
+        .input-with-button.focused::after {
+            transform: scaleX(1);
+        }
+
+        /* ===== BOTÃO SETA ===== */
+        .arrow-button {
+            padding: 16px 20px;
+            background: transparent;
+            border: none;
+            color: #888888;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .arrow-button:hover {
+            color: #00ccaa;
+            transform: translateX(2px);
+        }
+
+        .arrow-button svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* ===== FOOTER ===== */
+        .footer {
+            padding: 20px;
+            text-align: center;
+            color: #888888;
+            font-size: 14px;
+            font-weight: 300;
+        }
+
+        /* Links do footer */
+        .footer a {
+            color: #00ffaa;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer a:hover {
+            color: #00ccaa;
+            text-shadow: 0 0 5px #00ffaa4d;
+        }
+
+        /* ===== RESPONSIVIDADE - TABLETS ===== */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 30px 20px;
+            }
+            
+            .logo {
+                font-size: 5rem;
+            }
+            
+            .subtitle {
+                font-size: 1.2rem;
+                margin-bottom: 30px;
+            }
+            
+            .custom-input {
+                font-size: 14px;
+            }
+            
+            .arrow-button {
+                padding: 14px 16px;
+            }
+        }
+
+        /* ===== RESPONSIVIDADE - SMARTPHONES ===== */
+        @media (max-width: 480px) {
+            .logo {
+                font-size: 4rem;
+            }
+            
+            .subtitle {
+                max-width: 300px;
+                font-size: 1.1rem;
+            }
+            
+            .main-container {
+                padding: 20px 15px;
+            }
+            
+            .custom-input {
+                font-size: 13px;
+                padding: 12px 15px;
+            }
+            
+            .arrow-button {
+                padding: 12px 15px;
+            }
+            
+            .arrow-button svg {
+                width: 16px;
+                height: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Container principal da página -->
+    <div class="main-container">
+        <!-- Logo principal -->
+        <h1 class="logo">Draft</h1>
+        
+        <!-- Subtítulo explicativo -->
+        <p class="subtitle">
+            Crie e acesse suas notas de forma rápida e simples.
+        </p>
+        
+        <!-- Container do input -->
+        <div class="input-container">
+            <div class="input-with-button" id="inputContainer">
+                <input 
+                    type="text" 
+                    class="custom-input" 
+                    placeholder="Digite o nome da sua página"
+                    id="pageInput"
+                    autocomplete="off"
+                >
+                <button onclick="goToPage()" class="arrow-button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer da página -->
+    <footer class="footer">
+        <p>&copy; 2025 Draft - Bloco de notas simples e eficiente</p>
+    </footer>
+
+    <script>
+        function goToPage() {
+        const input = document.getElementById('pageInput').value.trim();
+        if (input) {
+            const encoded = encodeURIComponent(input);
+            window.location.href = `notas.html#/${encoded}`;
+        }
+        }
+    </script>
+</body>
+</html>
