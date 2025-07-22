@@ -70,6 +70,7 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            margin-bottom: 20px;
             text-align: center;
         }
 
@@ -77,9 +78,9 @@
         .subtitle {
             font-size: 1.2rem;
             font-weight: 300;
-            color: #f0f0f0;
+            color: #cccccc;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 40px;
             max-width: 500px;
         }
 
@@ -110,13 +111,13 @@
             font-weight: 300;
             background: transparent;
             border: none;
-            color: #00ccaa;
+            color: #00ffaa;
             outline: none;
             transition: all 0.3s ease;
         }
 
         .custom-input::placeholder {
-            color: #888888;
+            color: #8a8a9a;
             font-weight: 300;
         }
 
@@ -144,7 +145,7 @@
             padding: 16px 20px;
             background: transparent;
             border: none;
-            color: #888888;
+            color: #8a8a9a;
             cursor: pointer;
             transition: all 0.3s ease;
             font-size: 18px;
@@ -154,7 +155,7 @@
         }
 
         .arrow-button:hover {
-            color: #00ccaa;
+            color: #00ffaa;
             transform: translateX(2px);
         }
 
@@ -256,11 +257,11 @@
                 <input 
                     type="text" 
                     class="custom-input" 
-                    placeholder="Digite o nome da sua página"
-                    id="pageInput"
+                    placeholder="Digite o nome da sua página aqui"
+                    id="pageNameInput"
                     autocomplete="off"
                 >
-                <button onclick="goToPage()" class="arrow-button">
+                <button class="arrow-button" id="accessButton">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M5 12h14M12 5l7 7-7 7"/>
                     </svg>
@@ -271,17 +272,58 @@
 
     <!-- Footer da página -->
     <footer class="footer">
-        <p>&copy; 2025 Draft - Bloco de notas simples e eficiente</p>
+        <p>&copy; 2025 Draft</p>
     </footer>
 
     <script>
-        function goToPage() {
-        const input = document.getElementById('pageInput').value.trim();
-        if (input) {
-            const encoded = encodeURIComponent(input);
-            window.location.href = `notas.html#/${encoded}`;
+        // ===== ELEMENTOS DO DOM =====
+        const pageNameInput = document.getElementById('pageNameInput');
+        const accessButton = document.getElementById('accessButton');
+        const inputContainer = document.getElementById('inputContainer');
+        
+        // ===== INICIALIZAÇÃO DA PÁGINA =====
+        window.addEventListener('load', () => {
+            // Focar automaticamente no input quando a página carregar
+            pageNameInput.focus();
+        });
+        
+        // ===== CONTROLE DO FOCO NO INPUT =====
+        pageNameInput.addEventListener('focus', () => {
+            inputContainer.classList.add('focused');
+        });
+        
+        pageNameInput.addEventListener('blur', () => {
+            inputContainer.classList.remove('focused');
+        });
+        
+        // ===== FUNÇÃO PARA ACESSAR A PÁGINA =====
+        function accessPage() {
+            const input = document.getElementById('pageNameInput').value.trim();
+            if (input) {
+                const encoded = encodeURIComponent(input);
+                window.location.href = `draft.html#/${encoded}`;
+            }
         }
-        }
+        
+        // ===== EVENT LISTENERS =====
+        
+        // Clique no botão seta
+        accessButton.addEventListener('click', accessPage);
+        
+        // Pressionar Enter no input
+        pageNameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                accessPage();
+            }
+        });
+        
+        // Prevenir espaços no início do input
+        pageNameInput.addEventListener('input', (e) => {
+            // Remove espaços do início
+            if (e.target.value.startsWith(' ')) {
+                e.target.value = e.target.value.trimStart();
+            }
+        });
     </script>
 </body>
 </html>

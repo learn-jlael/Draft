@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bloco de Notas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+    <!-- Container principal -->
+    <div class="container">
+        <div class="notepad-container">
+            <!-- Textarea invisível para entrada de texto -->
+            <textarea 
+                class="notepad" 
+                placeholder="Comece a escrever suas notas aqui..." 
+                id="notepad"
+            ></textarea>
+            <!-- Div visível com texto formatado -->
+            <div class="formatted-content" id="formattedContent"></div>
+        </div>
+    </div>
+
+    <!-- Indicador de salvamento automático -->
+    <div class="save-indicator" id="saveIndicator">
+        Salvo automaticamente
+    </div>
+
+    <!-- Botão de ajuda (apenas visual) -->
+    <button class="help-button" id="helpButton" title="Atalhos: Ctrl+B (negrito), Ctrl+I (itálico), Ctrl+O (lista), --- (linha divisória)">
+        ?
+    </button>
+
+    <!-- Firebase SDKs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-database-compat.min.js"></script>
+
+    <script>
+        // ==========================================
+        // CONFIGURAÇÃO DO FIREBASE
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDJHGhlZptKnE_um5l9KOjcZHcq6U0iIQE",
+            authDomain: "draft-sls.firebaseapp.com",
+            databaseURL: "https://draft-sls-default-rtdb.firebaseio.com",
+            projectId: "draft-sls",
+            storageBucket: "draft-sls.firebasestorage.app",
+            messagingSenderId: "721078818051",
+            appId: "1:721078818051:web:be9461a00a95b6f1e30536"
+        };
+
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        
+        // ==========================================
+        // ELEMENTOS DOM
+        // ==========================================
+        const notepad = document.getElementById('notepad');
+        const formattedContent = document.getElementById('formattedContent');
+        const saveIndicator = document.getElementById('saveIndicator');
+
+        // ==========================================
+        // VARIÁVEIS GLOBAIS
+        // ==========================================
+        let saveTimeout;
+        let isConnected = false;
+        let isUpdatingCursor = false;
+        let lastSavedContent = '';
+        
+        // Gerar ID único para esta sessão/página
+        const pageId = getPageId();
+        const notesRef = database.ref(`notes/${pageId}`);
+
+        function getPageId() {
+            // Usar hash da URL ou gerar um ID único
+            const hash = window.location.hash.slice(1);
+            if (hash) {
+                return hash;
+            }
+            
+            // Gerar ID único baseado em timestamp e random
+            const id = 'note_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            window.location.hash = id;
+            return id;
+        }
+
+        // ==========================================
+        // FUNÇÕES DE FORMATAÇÃO
+        // ==========================================
+        function formatUrls(text) {
+            const cursorMarker = '«CURSOR»';
+            const cursorIndex = text.indexOf(cursorMarker);
+            const urlRegex = /(^|[\s\n])(https?:\/\/[^\s<>"'`]+|ftp:\/\/[^\s<>"'`]+|www\.[^\s<>"'`]+\.[a-z]{2,}[^\s<>"'`]*)/gi;
+
+            return text.replace(urlRegex, (match, prefix, url, offset) => {
+                let href = url;
+                let displayUrl = url;
+
+                if (url.toLowerCase().startsWith('www.')) {
+                    href = 'https://' + url;
+                }
+
+                const start = offset + prefix.length;
+                const end = start + url.length;
+                const cursorInside = cursorIndex >= start && cursorIndex <= end;
+
+                if (cursorInside) {
+                    return prefix + url;
+                }
+
+                return `${prefix}<a href="${href}" target="_blank" rel="noopener noreferrer" data-url="${href}">${displayUrl}</a>`;
+            });
+        }
+
+        function formatText(text) {
+            text = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            text = text.replace(/^---$/gm, '<span class="divider"></span>');
+            text = text.replace(/\*([^*\n<]+)\*/g, '<span class="bold">$1</span>');
+            text = text.replace(/(?<!https?:\/\/[^\s]*|www\.[^\s]*|[a-zA-Z0-9])_([^_\n<]+)_(?![a-zA-Z0-9])/g, '<span class="italic">$1</span>');
+            text = text.replace(/^-\s(.+)$/gm, '<span class="list-item">• $1</span>');
+            text = formatUrls(text);
+            return text;
+        }
+
+        function updateFormattedContent() {
+            const text = notepad.value;
+            const cursorPos = notepad.selectionStart;
+            const CURSOR_MARKER = '«CURSOR»';
+            const textWithMarker = text.slice(0, cursorPos) + CURSOR_MARKER + text.slice(cursorPos);
+            let formatted = formatText(textWithMarker);
+            formatted = formatted.replace(CURSOR_MARKER, '<span id="cursor-fake"></span>');
+            formattedContent.innerHTML = formatted;
+            syncLayout();
+        }
+
+        // ==========================================
+        // FIREBASE - CONEXÃO E SALVAMENTO
+        // ==========================================
+        function showSaveIndicator(success = true, message = 'Salvo automaticamente') {
+            saveIndicator.textContent = message;
+            saveIndicator.className = `save-indicator show ${success ? '' : 'error'}`;
+            
+            setTimeout(() => {
+                saveIndicator.classList.remove('show');
+            }, 2000);
+        }
+
+        function saveToFirebase(content) {
+            if (!isConnected) {
+                console.log('Offline - salvamento será feito quando conectar');
+                return;
+            }
+
+            if (content === lastSavedContent) {
+                return; // Não salvar se o conteúdo não mudou
+            }
+
+            notesRef.set({
+                content: content,
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                lastModified: new Date().toISOString()
+            }).then(() => {
+                lastSavedContent = content;
+                showSaveIndicator(true, 'Conteúdo Salvo');
+                console.log('Conteúdo salvo no Firebase com sucesso');
+            }).catch((error) => {
+                console.error('Erro ao salvar no Firebase:', error);
+                showSaveIndicator(false, 'Erro ao salvar');
+            });
+        }
+
+        function loadFromFirebase() {
+            notesRef.once('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    const content = data.content || '';
+                    notepad.value = content;
+                    lastSavedContent = content;
+                    updateFormattedContent();
+                    autoResize();
+                    console.log('Conteúdo carregado do Firebase');
+                } else {
+                    console.log('Nenhum conteúdo encontrado no Firebase');
+                }
+            }).catch((error) => {
+                console.error('Erro ao carregar do Firebase:', error);
+                showSaveIndicator(false, 'Erro ao carregar');
+            });
+        }
+
+        // Monitorar estado da conexão
+        database.ref('.info/connected').on('value', (snapshot) => {
+            const connected = snapshot.val();
+            isConnected = connected;
+            
+            if (connected) {
+                console.log('Conectado ao Firebase');
+                loadFromFirebase();
+            } else {
+                console.log('Desconectado do Firebase');
+            }
+        });
+
+        // ==========================================
+        // LAYOUT E SINCRONIZAÇÃO
+        // ==========================================
+        function syncLayout() {
+            const computedStyle = window.getComputedStyle(notepad);
+            formattedContent.style.width = notepad.offsetWidth + 'px';
+            formattedContent.style.height = notepad.offsetHeight + 'px';
+            formattedContent.style.paddingTop = computedStyle.paddingTop;
+            formattedContent.style.paddingRight = computedStyle.paddingRight;
+            formattedContent.style.paddingBottom = computedStyle.paddingBottom;
+            formattedContent.style.paddingLeft = computedStyle.paddingLeft;
+            formattedContent.style.fontSize = computedStyle.fontSize;
+            formattedContent.style.fontFamily = computedStyle.fontFamily;
+            formattedContent.style.lineHeight = computedStyle.lineHeight;
+            
+            const rect = notepad.getBoundingClientRect();
+            const parentRect = notepad.parentElement.getBoundingClientRect();
+            formattedContent.style.position = 'absolute';
+            formattedContent.style.left = (rect.left - parentRect.left) + 'px';
+            formattedContent.style.top = (rect.top - parentRect.top) + 'px';
+            
+            formattedContent.scrollTop = notepad.scrollTop;
+            formattedContent.scrollLeft = notepad.scrollLeft;
+        }
+
+        function autoResize() {
+            const minHeight = Math.max(500, window.innerHeight - 200);
+            notepad.style.height = 'auto';
+            const height = Math.max(notepad.scrollHeight, minHeight) + 'px';
+            notepad.style.height = height;
+            syncLayout();
+        }
+
+        // ==========================================
+        // MANIPULAÇÃO DE DIVISÓRIAS
+        // ==========================================
+        function handleTripleDash(textarea) {
+            const cursorPosition = textarea.selectionStart;
+            const text = textarea.value;
+            const textBefore = text.substring(0, cursorPosition);
+            
+            if (textBefore.endsWith('---')) {
+                let lineStart = cursorPosition - 3;
+                while (lineStart > 0 && text[lineStart - 1] !== '\n') {
+                    lineStart--;
+                }
+                
+                const textBeforeDash = text.substring(lineStart, cursorPosition - 3);
+                const textBeforeCurrentLine = text.substring(0, lineStart);
+                const textAfter = text.substring(cursorPosition);
+                
+                let newText = textBeforeCurrentLine;
+                if (textBeforeDash.trim()) {
+                    newText += textBeforeDash + '\n';
+                }
+                newText += '---\n' + textAfter;
+                
+                textarea.value = newText;
+                const newCursorPosition = newText.length - textAfter.length;
+                textarea.selectionStart = newCursorPosition;
+                textarea.selectionEnd = newCursorPosition;
+                
+                updateFormattedContent();
+                autoResize();
+                return true;
+            }
+            return false;
+        }
+
+        // ==========================================
+        // ATALHOS DE FORMATAÇÃO
+        // ==========================================
+        function applyBold() {
+            const start = notepad.selectionStart;
+            const end = notepad.selectionEnd;
+            const text = notepad.value;
+            
+            if (start === end) {
+                const beforeText = text.substring(0, start);
+                const afterText = text.substring(end);
+                notepad.value = beforeText + '**' + afterText;
+                const newPosition = start + 1;
+                notepad.selectionStart = newPosition;
+                notepad.selectionEnd = newPosition;
+            } else {
+                const selectedText = text.substring(start, end);
+                const beforeText = text.substring(0, start);
+                const afterText = text.substring(end);
+                notepad.value = beforeText + '*' + selectedText + '*' + afterText;
+                notepad.selectionStart = start;
+                notepad.selectionEnd = end + 2;
+            }
+            
+            updateFormattedContent();
+            autoResize();
+            notepad.focus();
+        }
+
+        function applyItalic() {
+            const start = notepad.selectionStart;
+            const end = notepad.selectionEnd;
+            const text = notepad.value;
+            
+            if (start === end) {
+                const beforeText = text.substring(0, start);
+                const afterText = text.substring(end);
+                notepad.value = beforeText + '__' + afterText;
+                const newPosition = start + 1;
+                notepad.selectionStart = newPosition;
+                notepad.selectionEnd = newPosition;
+            } else {
+                const selectedText = text.substring(start, end);
+                const beforeText = text.substring(0, start);
+                const afterText = text.substring(end);
+                notepad.value = beforeText + '_' + selectedText + '_' + afterText;
+                notepad.selectionStart = start;
+                notepad.selectionEnd = end + 2;
+            }
+            
+            updateFormattedContent();
+            autoResize();
+            notepad.focus();
+        }
+
+        function applyUnorderedList() {
+            const start = notepad.selectionStart;
+            const end = notepad.selectionEnd;
+            const text = notepad.value;
+            
+            let lineStart = start;
+            while (lineStart > 0 && text[lineStart - 1] !== '\n') {
+                lineStart--;
+            }
+            
+            let lineEnd = end;
+            while (lineEnd < text.length && text[lineEnd] !== '\n') {
+                lineEnd++;
+            }
+            
+            const beforeText = text.substring(0, lineStart);
+            const afterText = text.substring(lineEnd);
+            const selectedLines = text.substring(lineStart, lineEnd);
+            const lines = selectedLines.split('\n');
+            
+            const listLines = lines.map(line => {
+                const trimmedLine = line.trim();
+                if (trimmedLine === '') return line;
+                if (trimmedLine.startsWith('- ')) {
+                    return trimmedLine.substring(2);
+                } else {
+                    return `- ${trimmedLine}`;
+                }
+            });
+            
+            const formattedText = listLines.join('\n');
+            notepad.value = beforeText + formattedText + afterText;
+            
+            updateFormattedContent();
+            autoResize();
+            notepad.focus();
+        }
+
+        // ==========================================
+        // EVENT LISTENERS
+        // ==========================================
+        
+        // Entrada de texto
+        notepad.addEventListener('input', (e) => {
+            if (e.inputType === 'insertText' && e.data === '-') {
+                setTimeout(() => {
+                    if (!handleTripleDash(notepad)) {
+                        updateFormattedContent();
+                    }
+                }, 0);
+            } else {
+                updateFormattedContent();
+            }
+
+            // Salvamento automático com debounce
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                saveToFirebase(notepad.value);
+            }, 1500);
+        });
+
+        // Eventos de cursor e layout
+        notepad.addEventListener('keyup', updateFormattedContent);
+        notepad.addEventListener('click', updateFormattedContent);
+        notepad.addEventListener('scroll', syncLayout);
+        notepad.addEventListener('input', () => {
+            autoResize();
+            setTimeout(syncLayout, 0);
+        });
+
+        // Redimensionamento da janela
+        window.addEventListener('resize', () => {
+            autoResize();
+            setTimeout(syncLayout, 0);
+        });
+
+        // Cliques em links
+        formattedContent.addEventListener('click', (event) => {
+            let linkElement = event.target.closest('a');
+            if (linkElement) {
+                event.preventDefault();
+                const url = linkElement.getAttribute('href');
+                if (url) {
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                }
+                setTimeout(() => notepad.focus(), 100);
+                return false;
+            }
+        });
+
+        // Atalhos de teclado
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key.toLowerCase()) {
+                    case 's':
+                        e.preventDefault();
+                        saveToFirebase(notepad.value);
+                        break;
+                    case 'b':
+                        e.preventDefault();
+                        applyBold();
+                        break;
+                    case 'i':
+                        e.preventDefault();
+                        applyItalic();
+                        break;
+                    case 'o':
+                        e.preventDefault();
+                        applyUnorderedList();
+                        break;
+                }
+            }
+            
+            if ((e.ctrlKey && e.key === 'z') || (e.ctrlKey && e.key === 'y')) {
+                setTimeout(() => {
+                    updateFormattedContent();
+                    autoResize();
+                }, 0);
+            }
+        });
+
+        // ==========================================
+        // INICIALIZAÇÃO
+        // ==========================================
+        autoResize();
+        requestAnimationFrame(() => {
+            syncLayout();
+            notepad.focus();
+        });
+
+        // Salvamento ao sair da página
+        window.addEventListener('beforeunload', () => {
+            if (notepad.value !== lastSavedContent) {
+                saveToFirebase(notepad.value);
+            }
+        });
+    </script>
+</body>
+</html>
